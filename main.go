@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/subosito/gotenv"
@@ -110,11 +112,16 @@ func CommandHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if m.Content == "!char" {
-		_, _ = s.ChannelMessageSend(m.ChannelID, GetCharacterInfo("Atan Sarbeth"))
+		_, _ = s.ChannelMessageSend(m.ChannelID, "Musisz podac nazwe postaci np. !char Uther Morlenfra")
+	}
+
+	if strings.Contains(m.Content, "!char") && len(m.Content) > len("!char") {
+		GetCharacterInfo(After(m.Content, "!char"))
+		_, _ = s.ChannelMessageSend(m.ChannelID, PrintCharacterInfo())
 	}
 }
 
-func GetCharacterInfo(CharName string) string {
+func GetCharacterInfo(CharName string) {
 	response, err := http.Get("https://api.tibiadata.com/v2/characters/" + CharName + ".json")
 	if err != nil {
 		fmt.Println(err.Error())
@@ -128,6 +135,50 @@ func GetCharacterInfo(CharName string) string {
 	}
 
 	json.Unmarshal([]byte(body), &char)
+}
 
-	return char.Characters.Data.Name
+func PrintCharacterInfo() string {
+
+	BasicCharInfo :=
+		"```apache" +
+			"\nName: " + char.Characters.Data.Name +
+			" " + strings.ToUpper(char.Characters.Data.Status) +
+			"\nTitle:" + char.Characters.Data.Title +
+			"\nSex:" + char.Characters.Data.Sex +
+			"\nVocation:" + char.Characters.Data.Vocation +
+			"\nLevel:" + strconv.Itoa(char.Characters.Data.Level) +
+			"\nAchievement Points:" + strconv.Itoa(char.Characters.Data.AchievementPoints) +
+			"\nWorld:" + char.Characters.Data.World +
+			"\nResidence:" + char.Characters.Data.Residence +
+			"\nAccount Status:" + char.Characters.Data.AccountStatus +
+			"```"
+
+	if len(char.Characters.Deaths) != 0 {
+		CharacterDeaths := "\n"
+
+		for _, death := range char.Characters.Deaths {
+			CharacterDeaths += string(death.Date.Date) + ", " + string(death.Date.Timezone) + " " + death.Reason + " at Level " + strconv.Itoa(death.Level) + ".\n"
+		}
+
+		CharacterDeaths = "```cs" + "\n" + CharacterDeaths + "\n```"
+
+		return BasicCharInfo + CharacterDeaths
+	}
+
+	return BasicCharInfo
+}
+
+func After(value string, a string) string {
+	pos := strings.LastIndex(value, a)
+	if pos == -1 {
+		return ""
+	}
+
+	adjustedPos := pos + len(a)
+
+	if adjustedPos >= len(value) {
+		return ""
+	}
+
+	return value[adjustedPos:len(value)]
 }
