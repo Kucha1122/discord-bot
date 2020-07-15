@@ -19,7 +19,7 @@ func init() {
 
 var BotID string
 var discord *discordgo.Session
-var char CharacterResponse
+var char *CharacterResponse
 
 type CharacterResponse struct {
 	Characters struct {
@@ -152,6 +152,9 @@ func PrintCharacterInfo() string {
 			"\nResidence:" + char.Characters.Data.Residence +
 			"\nAccount Status:" + char.Characters.Data.AccountStatus +
 			"```"
+	if char.Characters.Data.Name == "" {
+		return "Character does not exist."
+	}
 
 	if len(char.Characters.Deaths) != 0 {
 		CharacterDeaths := "\n"
@@ -162,8 +165,11 @@ func PrintCharacterInfo() string {
 
 		CharacterDeaths = "```cs" + "\n" + CharacterDeaths + "\n```"
 
+		char = nil
 		return BasicCharInfo + CharacterDeaths
 	}
+
+	char = nil
 
 	return BasicCharInfo
 }
