@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/antchfx/htmlquery"
 	"github.com/bwmarrin/discordgo"
@@ -22,7 +23,7 @@ var BotID string
 var discord *discordgo.Session
 var char *CharacterResponse
 var vs *discordgo.VoiceStateUpdate
-var BossData *[]Boss
+var BossData *[402]Boss
 
 type Boss struct {
 	ID             string
@@ -34,6 +35,8 @@ type Boss struct {
 	KilledPlayers  string
 	LastSeen       string
 	Introduced     string
+	KilledDaysAgo  int32
+	Probability    string
 }
 
 type CharacterResponse struct {
@@ -239,8 +242,22 @@ func ScrapWebsite() {
 		BossData[bN].KilledPlayers = htmlquery.InnerText(list[i+6])
 		BossData[bN].LastSeen = htmlquery.InnerText(list[i+7])
 		BossData[bN].Introduced = htmlquery.InnerText(list[i+8])
+
+		tempDate, err := time.Parse("2006-01-02", BossData[bN].LastSeen)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		days := time.Now().Sub(tempDate).Hours() / 24
+		BossData[bN].KilledDaysAgo = int32(days)
+
+		fmt.Println(int32(days))
 		bN++
 	}
 
 	fmt.Println(BossData[401].Name + " Last Seen: " + BossData[401].LastSeen)
+
+}
+
+func PrintBossProbability() {
+
 }
