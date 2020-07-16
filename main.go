@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/antchfx/htmlquery"
 	"github.com/bwmarrin/discordgo"
 	"github.com/subosito/gotenv"
 )
@@ -20,6 +21,20 @@ func init() {
 var BotID string
 var discord *discordgo.Session
 var char *CharacterResponse
+var vs *discordgo.VoiceStateUpdate
+var BossData *[]Boss
+
+type Boss struct {
+	ID             string
+	Name           string
+	Image          string
+	KilledBossesY  string
+	KilledPlayersY string
+	KilledBosses   string
+	KilledPlayers  string
+	LastSeen       string
+	Introduced     string
+}
 
 type CharacterResponse struct {
 	Characters struct {
@@ -87,7 +102,8 @@ func main() {
 	}
 
 	BotID = u.ID
-	discord.AddHandler(CommandHandler)
+	discord.AddHandler(CharacterInfoHandler)
+	//discord.AddHandler(OnlineWelcomeMessage)
 	err = discord.Open()
 
 	if err != nil {
@@ -96,30 +112,47 @@ func main() {
 	}
 
 	fmt.Println("Bot is running!")
+	ScrapWebsite()
 
 	<-make(chan struct{})
 	return
 }
 
-func CommandHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+func CharacterInfoHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if m.Author.ID == BotID {
 		return
 	}
 
-	if m.Content == "Siema" {
-		_, _ = s.ChannelMessageSend(m.ChannelID, "elo")
-	}
-
 	if m.Content == "!char" {
 		_, _ = s.ChannelMessageSend(m.ChannelID, "Musisz podac nazwe postaci np. !char Uther Morlenfra")
-	}
-
-	if strings.Contains(m.Content, "!char") && len(m.Content) > len("!char") {
+	} else if strings.Contains(m.Content, "!char") && len(m.Content) > len("!char") {
 		GetCharacterInfo(After(m.Content, "!char"))
 		_, _ = s.ChannelMessageSend(m.ChannelID, PrintCharacterInfo())
 	}
 }
+
+// func OnlineWelcomeMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+// 	if m.Author.ID == BotID {
+// 		return
+// 	}
+
+// 	var channelId string
+// 	channels, _ := s.GuildChannels(m.GuildID)
+// 	for _, channel := range channels {
+// 		if channel.Name == "Tibia" {
+// 			channelId = channel.ID
+// 		}
+// 	}
+// 	ch, _ := s.Channel(channelId)
+// 	onlineUsers := ch.Recipients
+// 	//fmt.Println(vs.UserID)
+// 	//fmt.Println(channelId)
+
+// 	_, _ = s.ChannelMessageSend(m.ChannelID, strconv.Itoa(len(onlineUsers)))
+
+// }
 
 func GetCharacterInfo(CharName string) {
 	response, err := http.Get("https://api.tibiadata.com/v2/characters/" + CharName + ".json")
@@ -170,7 +203,6 @@ func PrintCharacterInfo() string {
 	}
 
 	char = nil
-
 	return BasicCharInfo
 }
 
@@ -187,4 +219,28 @@ func After(value string, a string) string {
 	}
 
 	return value[adjustedPos:len(value)]
+}
+
+func ScrapWebsite() {
+	doc, err := htmlquery.LoadURL("https://guildstats.eu/bosses?monsterName=&world=Monza&rook=0")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	list := htmlquery.Find(doc, "//td")
+	var bN = 0
+	var BossData [402]Boss
+	for i := 2; i < len(list); i = i + 9 {
+		BossData[bN].ID = htmlquery.InnerText(list[i])
+		BossData[bN].Name = htmlquery.InnerText(list[i+1])
+		BossData[bN].Image = htmlquery.InnerText(list[i+2])
+		BossData[bN].KilledBossesY = htmlquery.InnerText(list[i+3])
+		BossData[bN].KilledPlayersY = htmlquery.InnerText(list[i+4])
+		BossData[bN].KilledBosses = htmlquery.InnerText(list[i+5])
+		BossData[bN].KilledPlayers = htmlquery.InnerText(list[i+6])
+		BossData[bN].LastSeen = htmlquery.InnerText(list[i+7])
+		BossData[bN].Introduced = htmlquery.InnerText(list[i+8])
+		bN++
+	}
+
+	fmt.Println(BossData[401].Name + " Last Seen: " + BossData[401].LastSeen)
 }
