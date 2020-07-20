@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"discord-bot/utility"
 	"github.com/antchfx/htmlquery"
 	"github.com/bwmarrin/discordgo"
 	"github.com/subosito/gotenv"
@@ -21,81 +22,9 @@ func init() {
 
 var BotID string
 var discord *discordgo.Session
-var char *CharacterResponse
+var char *utility.CharacterResponse
 var vs *discordgo.VoiceStateUpdate
-var BossData *[402]Boss
-
-type Boss struct {
-	ID             string
-	Name           string
-	Image          string
-	KilledBossesY  string
-	KilledPlayersY string
-	KilledBosses   string
-	KilledPlayers  string
-	LastSeen       string
-	Introduced     string
-	KilledDaysAgo  int32
-	IntervalKill   float64
-}
-
-type BossB struct {
-	Name     string
-	Respawns string
-	Type     string
-}
-
-type CharacterResponse struct {
-	Characters struct {
-		Data struct {
-			Name              string `json:"name"`
-			Title             string `json:"title"`
-			Sex               string `json:"sex"`
-			Vocation          string `json:"vocation"`
-			Level             int    `json:"level"`
-			AchievementPoints int    `json:"achievement_points"`
-			World             string `json:"world"`
-			Residence         string `json:"residence"`
-			LastLogin         []struct {
-				Date         string `json:"date"`
-				TimezoneType int    `json:"timezone_type"`
-				Timezone     string `json:"timezone"`
-			} `json:"last_login"`
-			AccountStatus string `json:"account_status"`
-			Status        string `json:"status"`
-		} `json:"data"`
-		Achievements []interface{} `json:"achievements"`
-		Deaths       []struct {
-			Date struct {
-				Date         string `json:"date"`
-				TimezoneType int    `json:"timezone_type"`
-				Timezone     string `json:"timezone"`
-			} `json:"date"`
-			Level    int           `json:"level"`
-			Reason   string        `json:"reason"`
-			Involved []interface{} `json:"involved"`
-		} `json:"deaths"`
-		AccountInformation struct {
-			LoyaltyTitle string `json:"loyalty_title"`
-			Created      struct {
-				Date         string `json:"date"`
-				TimezoneType int    `json:"timezone_type"`
-				Timezone     string `json:"timezone"`
-			} `json:"created"`
-		} `json:"account_information"`
-		OtherCharacters []struct {
-			Name   string `json:"name"`
-			World  string `json:"world"`
-			Status string `json:"status"`
-		} `json:"other_characters"`
-	} `json:"characters"`
-	Information struct {
-		APIVersion    int     `json:"api_version"`
-		ExecutionTime float64 `json:"execution_time"`
-		LastUpdated   string  `json:"last_updated"`
-		Timestamp     string  `json:"timestamp"`
-	} `json:"information"`
-}
+var BossData *[402]utility.Boss
 
 func main() {
 	discord, err := discordgo.New("Bot " + os.Getenv("TOKEN"))
@@ -121,6 +50,8 @@ func main() {
 	}
 
 	fmt.Println("Bot is running!")
+	UpdateProfit("Atan Sarbeth", "178000")
+	UpdateProfit("Zami Iskus", "178000")
 
 	<-make(chan struct{})
 	return
@@ -260,7 +191,7 @@ func ScrapWebsite() {
 	}
 	list := htmlquery.Find(doc, "//td")
 	var bN = 0
-	var BossData [402]Boss
+	var BossData [402]utility.Boss
 	for i := 2; i < len(list); i = i + 9 {
 		BossData[bN].ID = htmlquery.InnerText(list[i])
 		BossData[bN].Name = htmlquery.InnerText(list[i+1])
@@ -373,16 +304,16 @@ func PrintBosses(bossType string) string {
 	}
 }
 
-func scrapTibiaBosses(world string) ([7]BossB, [15]BossB, [2]BossB, [4]BossB, [11]BossB) {
+func scrapTibiaBosses(world string) ([7]utility.BossB, [14]utility.BossB, [2]utility.BossB, [4]utility.BossB, [11]utility.BossB) {
 	doc, err := htmlquery.LoadURL("https://www.tibiabosses.com/" + world + "/")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	var PoiBoss [7]BossB
-	var WeakBoss [15]BossB
-	var RoshamuulBoss [2]BossB
-	var ArchdemonsBoss [4]BossB
-	var ProfitBoss [11]BossB
+	var PoiBoss [7]utility.BossB
+	var WeakBoss [14]utility.BossB
+	var RoshamuulBoss [2]utility.BossB
+	var ArchdemonsBoss [4]utility.BossB
+	var ProfitBoss [11]utility.BossB
 	PoiBNames := htmlquery.Find(doc, `/html/body/div[1]/div[1]/section/article/div/div/div[1]/div[5]/div[2]/div/div/a/@href`)
 	PoiB := htmlquery.Find(doc, `/html/body/div[1]/div[1]/section/article/div/div/div[1]/div[5]/div[2]/div/div`)
 
@@ -445,4 +376,20 @@ func scrapTibiaBosses(world string) ([7]BossB, [15]BossB, [2]BossB, [4]BossB, [1
 	}
 
 	return PoiBoss, WeakBoss, RoshamuulBoss, ArchdemonsBoss, ProfitBoss
+}
+
+func UpdateProfit(Nick string, Waste string) {
+	file, err := os.OpenFile("Profit.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	l, err := file.WriteString(Nick + " | " + Waste + "\r\n")
+	if err != nil {
+		fmt.Println(err.Error())
+		file.Close()
+		return
+	}
+	fmt.Println(l, "Written successfully!")
+	file.Close()
 }
